@@ -27,10 +27,21 @@ export default function DepartmentAdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || user.role !== 'department_admin') {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    if (user.role !== 'department_admin') {
+      toast({
+        title: "Access Denied",
+        description: `You must be a department admin to access this page. Your current role: ${user.role}`,
+        variant: "destructive",
+      });
       navigate('/');
       return;
     }
+    
     loadData();
   }, [user, navigate]);
 
@@ -43,9 +54,15 @@ export default function DepartmentAdminDashboard() {
       
       if (!deptId) {
         toast({
-          title: 'Error',
-          description: 'Department not found',
-          variant: 'destructive'
+          title: "Department Not Found",
+          description: `Your account (${user.email}) is not linked to a department. Please run the setup_demo_hierarchy() function in your database or contact an administrator.`,
+          variant: "destructive",
+        });
+        console.error('Department admin user details:', {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          message: 'No department_id found in profiles table'
         });
         return;
       }

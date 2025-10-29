@@ -373,8 +373,7 @@ begin
   insert into public.lessons (course_id, title, description, video_url, duration, order_index)
   values 
     (v_course_id, 'React Basics', 'Introduction to React', 'https://www.youtube.com/watch?v=SqcY0GlETPk', '15:00', 1),
-    (v_course_id, 'Components', 'Understanding Components', 'https://www.youtube.com/watch?v=SqcY0GlETPk', '20:00', 2)
-  returning id into v_lesson_id;
+    (v_course_id, 'Components', 'Understanding Components', 'https://www.youtube.com/watch?v=SqcY0GlETPk', '20:00', 2);
 
   -- Enroll student in course
   insert into public.course_enrollments (course_id, student_id)
@@ -446,7 +445,7 @@ alter default privileges in schema public
 -- SETUP INSTRUCTIONS
 -- ================================================
 -- To set up the demo hierarchy:
--- 1. Create these users in Supabase Auth Dashboard:
+-- 1. Create these users in Supabase Auth Dashboard (EXACT emails required):
 --    - super@admin.com (password: Admin123!)
 --    - dept@admin.com (password: Admin123!)
 --    - instructor@test.com (password: Test123!)
@@ -466,11 +465,33 @@ alter default privileges in schema public
 --   ((select id from public.profiles where email = 'student@test.com'), 'student')
 -- on conflict (user_id, role) do nothing;
 --
--- 4. Run this function:
+-- 4. Run this function to set up demo data:
 --    select setup_demo_hierarchy();
 --
 -- This will:
 --  - Assign all users to Computer Science department
---  - Assign appropriate roles to each user
+--  - Link department_id in profiles table
 --  - Create demo courses, lessons, workshops, and enrollments
+--
+-- ================================================
+-- VERIFICATION QUERY
+-- ================================================
+-- Run this query to verify your setup worked correctly:
+--
+-- select 
+--   p.email, 
+--   p.name, 
+--   p.department_id,
+--   d.name as department_name,
+--   d.code as department_code,
+--   ur.role
+-- from public.profiles p
+-- left join public.departments d on p.department_id = d.id
+-- left join public.user_roles ur on p.id = ur.user_id
+-- order by ur.role;
+--
+-- Expected results:
+-- - All 4 users should have department_id populated
+-- - dept@admin.com should be linked to Computer Science department
+-- - Each user should have their appropriate role assigned
 -- ================================================
