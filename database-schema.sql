@@ -312,7 +312,7 @@ insert into public.departments (name, code, description) values
   ('Mechanical Engineering', 'ME', 'Mechanical Engineering');
 
 -- ============================================
--- DEMO HIERARCHY SETUP FUNCTION
+-- FIXED DEMO HIERARCHY SETUP FUNCTION
 -- ============================================
 create or replace function setup_demo_hierarchy()
 returns void
@@ -331,20 +331,43 @@ declare
   v_workshop_id uuid;
   v_session_id uuid;
 begin
-  -- Get CS department ID
-  select id into v_cs_dept_id from public.departments where code = 'CS';
+  -- Get CS department ID (ensure single result)
+  select id into v_cs_dept_id 
+  from public.departments 
+  where code = 'CS'
+  limit 1;
 
-  -- Get user IDs from auth.users (users must be created via Supabase Auth first)
-  select id into v_super_admin_id from auth.users where email = 'super@admin.com';
-  select id into v_dept_admin_id from auth.users where email = 'dept@admin.com';
-  select id into v_instructor_id from auth.users where email = 'instructor@test.com';
-  select id into v_student_id from auth.users where email = 'student@test.com';
+  -- Get user IDs from auth.users (ensure single row each)
+  select id into v_super_admin_id 
+  from auth.users 
+  where email = 'super@admin.com'
+  order by created_at asc
+  limit 1;
+
+  select id into v_dept_admin_id 
+  from auth.users 
+  where email = 'dept@admin.com'
+  order by created_at asc
+  limit 1;
+
+  select id into v_instructor_id 
+  from auth.users 
+  where email = 'instructor@test.com'
+  order by created_at asc
+  limit 1;
+
+  select id into v_student_id 
+  from auth.users 
+  where email = 'student@test.com'
+  order by created_at asc
+  limit 1;
 
   -- Update profiles with department
-  update public.profiles set department_id = v_cs_dept_id 
+  update public.profiles 
+  set department_id = v_cs_dept_id 
   where id in (v_super_admin_id, v_dept_admin_id, v_instructor_id, v_student_id);
 
-  -- Assign roles
+  -- Assign roles safely
   insert into public.user_roles (user_id, role) values
     (v_super_admin_id, 'super_admin'),
     (v_dept_admin_id, 'department_admin'),
@@ -356,18 +379,20 @@ begin
   insert into public.courses (
     title, description, instructor_id, instructor_name, 
     department_id, category, level, duration, thumbnail, video_url
-  ) values (
+  )
+  values (
     'Introduction to React',
     'Learn the basics of React framework',
     v_instructor_id,
-    (select name from public.profiles where id = v_instructor_id),
+    (select name from public.profiles where id = v_instructor_id limit 1),
     v_cs_dept_id,
     'Web Development',
     'Beginner',
     '4 weeks',
     'https://images.unsplash.com/photo-1633356122544-f134324a6cee',
     'https://www.youtube.com/watch?v=SqcY0GlETPk'
-  ) returning id into v_course_id;
+  )
+  returning id into v_course_id;
 
   -- Create demo lessons
   insert into public.lessons (course_id, title, description, video_url, duration, order_index)
@@ -389,17 +414,19 @@ begin
   insert into public.workshops (
     title, description, instructor_id, instructor_name,
     department_id, category, thumbnail, max_students, status
-  ) values (
+  )
+  values (
     'React Hooks Workshop',
     'Deep dive into React Hooks',
     v_instructor_id,
-    (select name from public.profiles where id = v_instructor_id),
+    (select name from public.profiles where id = v_instructor_id limit 1),
     v_cs_dept_id,
     'Web Development',
     'https://images.unsplash.com/photo-1633356122544-f134324a6cee',
     30,
     'upcoming'
-  ) returning id into v_workshop_id;
+  )
+  returning id into v_workshop_id;
 
   -- Create workshop session
   insert into public.workshop_sessions (workshop_id, date, start_time, end_time, vimeo_live_url, is_live)
@@ -410,36 +437,21 @@ begin
     '16:00:00',
     'https://vimeo.com/event/123456/embed',
     false
-  ) returning id into v_session_id;
+  )
+  returning id into v_session_id;
 
   -- Enroll student in workshop
   insert into public.workshop_enrollments (workshop_id, student_id)
   values (v_workshop_id, v_student_id)
   on conflict (workshop_id, student_id) do nothing;
 
-  raise notice 'Demo hierarchy created successfully!';
+  raise notice '✅ Demo hierarchy created successfully!';
+exception
+  when others then
+    raise warning '⚠️ setup_demo_hierarchy failed: %', sqlerrm;
 end;
 $$;
 
--- ============================================
--- PERMISSIONS (NO RLS)
--- ============================================
-
--- Grant schema access
-grant usage on schema public to anon, authenticated;
-
--- Grant table access
-grant select, insert, update, delete on all tables in schema public to anon, authenticated;
-
--- Grant sequence access
-grant usage, select, update on all sequences in schema public to anon, authenticated;
-
--- Future tables
-alter default privileges in schema public 
-  grant select, insert, update, delete on tables to anon, authenticated;
-  
-alter default privileges in schema public 
-  grant usage, select, update on sequences to anon, authenticated;
 
 -- ================================================
 -- SETUP INSTRUCTIONS
